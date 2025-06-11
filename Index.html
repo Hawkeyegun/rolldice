@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Dice Roller</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); /* Colorful background */
+            overflow: hidden; /* Prevent scrollbar if dice go slightly out of bounds during animation */
+        }
+
+        .dice-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            perspective: 1000px; /* For 3D rotation effect */
+        }
+
+        .die {
+            width: 80px;
+            height: 80px;
+            background-color: #f0f0f0;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3), 0 6px 6px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s ease-out; /* Smooth transition for stopping */
+            border: 2px solid #555;
+            flex-shrink: 0; /* Prevent dice from shrinking in flex container */
+        }
+
+        /* Animation for rolling */
+        .rolling {
+            animation: roll 0.2s infinite alternate; /* Fast alternating animation */
+        }
+
+        @keyframes roll {
+            0% {
+                transform: rotateX(0deg) rotateY(0deg);
+                filter: brightness(1);
+            }
+            50% {
+                transform: rotateX(180deg) rotateY(90deg);
+                filter: brightness(1.2);
+            }
+            100% {
+                transform: rotateX(360deg) rotateY(180deg);
+                filter: brightness(1);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .die {
+                width: 60px;
+                height: 60px;
+                font-size: 36px;
+            }
+            .dice-container {
+                gap: 15px;
+            }
+            .main-content {
+                padding: 15px;
+            }
+            .control-panel {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .control-panel select, .control-panel button {
+                width: 100%;
+            }
+        }
+
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4CAF50; /* Green */
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .message-box.show {
+            opacity: 1;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .user-id-display {
+            font-size: 0.9rem;
+            color: #ccc;
+            margin-bottom: 20px;
+            background-color: #333;
+            padding: 8px 15px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-700 to-blue-700">
+
+    <div class="main-content bg-white p-8 rounded-lg shadow-2xl text-center max-w-lg w-full transform transition-all duration-300 ease-in-out hover:scale-105">
+        <h1 class="text-4xl font-bold text-gray-800 mb-6">🎲 Dice Roller</h1>
+
+        <div id="user-id-container" class="user-id-display">
+            <!-- User ID will be loaded here -->
+        </div>
+
+        <div class="control-panel flex justify-center items-center gap-4 mb-8">
+            <label for="num-dice" class="text-gray-700 font-semibold text-lg">Number of Dice:</label>
+            <select id="num-dice" class="p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-gray-100 shadow-sm">
+                <option value="1">1</option>
+                <option value="2" selected>2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+            </select>
+            <button id="roll-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                Roll Dice
+            </button>
+        </div>
+
+        <div id="dice-container" class="dice-container">
+            <!-- Dice will be rendered here by JavaScript -->
+        </div>
+
+        <div id="result-display" class="text-3xl font-bold text-gray-800 mt-4 mb-6"></div>
+
+        <!-- LLM Features Section -->
+        <div class="llm-features mt-8 p-6 bg-gray-100 rounded-lg shadow-inner border border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4">Enhance Your Roll!</h2>
+            <div class="flex flex-col sm:flex-row justify-center gap-4 mb-4">
+                <button id="interpret-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="interpret-spinner" class="hidden spinner mr-2"></span> Interpret Roll ✨
+                </button>
+                <button id="story-button" class="bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="story-spinner" class="hidden spinner mr-2"></span> Generate Dice Story ✨
+                </button>
+            </div>
+            <div id="interpretation-display" class="bg-gray-50 p-4 rounded-md text-gray-700 text-lg mb-4 hidden border border-gray-200"></div>
+            <div id="story-display" class="bg-gray-50 p-4 rounded-md text-gray-700 text-lg hidden border border-gray-200"></div>
+        </div>
+    </div>
+
+    <div id="message-box" class="message-box"></div>
+
+    <!-- Firebase SDK Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, where, getDocs, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase instances (accessible to other scripts via window)
+        window.firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        window.appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        window.initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        window.initializeApp = initializeApp;
+        window.getAuth = getAuth;
+        window.signInAnonymously = signInAnonymously;
+        window.signInWithCustomToken = signInWithCustomToken;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.getFirestore = getFirestore;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.onSnapshot = onSnapshot;
+        window.query = query;
+        window.where = where;
+        window.getDocs = getDocs;
+        window.serverTimestamp = serverTimestamp;
+        window.doc = doc;
+        window.setDoc = setDoc;
+    </script>
+
+    <script>
+        // Main application logic
+        const numDiceSelect = document.getElementById('num-dice');
+        const rollButton = document.getElementById('roll-button');
+        const diceContainer = document.getElementById('dice-container');
+        const resultDisplay = document.getElementById('result-display');
+        const messageBox = document.getElementById('message-box');
+        const userIdContainer = document.getElementById('user-id-container');
+
+        const interpretButton = document.getElementById('interpret-button');
+        const storyButton = document.getElementById('story-button');
+        const interpretationDisplay = document.getElementById('interpretation-display');
+        const storyDisplay = document.getElementById('story-display');
+        const interpretSpinner = document.getElementById('interpret-spinner');
+        const storySpinner = document.getElementById('story-spinner');
+
+        let rollingInterval;
+        let isRolling = false;
+        let currentDiceResults = []; // To store the last rolled numbers
+
+        // Firebase-related variables
+        let db;
+        let auth;
+        let currentUserId = null;
+        let isAuthReady = false;
+
+        // Function to show a temporary message
+        function showMessage(message, type = 'success') {
+            messageBox.textContent = message;
+            messageBox.className = `message-box show bg-${type === 'success' ? 'green' : 'red'}-600`;
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 2500);
+        }
+
+        // Initialize Firebase and set up authentication
+        async function initializeFirebase() {
+            try {
+                const app = window.initializeApp(window.firebaseConfig);
+                db = window.getFirestore(app);
+                auth = window.getAuth(app);
+
+                window.onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        userIdContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Your User ID: <span class="font-mono text-orange-300">${currentUserId}</span>`;
+                        isAuthReady = true;
+                        console.log("User signed in:", currentUserId);
+                    } else {
+                        if (window.initialAuthToken) {
+                            try {
+                                await window.signInWithCustomToken(auth, window.initialAuthToken);
+                                console.log("Signed in with custom token.");
+                            } catch (authError) {
+                                console.error("Error signing in with custom token:", authError);
+                                showMessage("Failed to sign in. Please try again.", "error");
+                                isAuthReady = true; // Mark auth as ready even if error
+                            }
+                        } else {
+                            try {
+                                await window.signInAnonymously(auth);
+                                console.log("Signed in anonymously.");
+                            } catch (anonError) {
+                                console.error("Error signing in anonymously:", anonError);
+                                showMessage("Failed to sign in anonymously. Please try again.", "error");
+                            } finally {
+                                isAuthReady = true;
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Failed to initialize Firebase:", err);
+                showMessage("Failed to initialize the app. Check console for details.", "error");
+            }
+        }
+
+        // Function to create and render dice based on selection
+        function renderDice(num) {
+            diceContainer.innerHTML = ''; // Clear previous dice
+            currentDiceResults = []; // Reset results
+            for (let i = 0; i < num; i++) {
+                const die = document.createElement('div');
+                die.classList.add('die', 'bg-white', 'text-gray-800', 'flex', 'items-center', 'justify-center', 'rounded-xl', 'shadow-md', 'text-5xl', 'font-extrabold', 'transition-all', 'duration-200');
+                die.textContent = '?'; // Initial placeholder
+                diceContainer.appendChild(die);
+            }
+            resultDisplay.textContent = ''; // Clear previous result
+            // Hide LLM results when dice are reset
+            interpretationDisplay.classList.add('hidden');
+            storyDisplay.classList.add('hidden');
+            interpretButton.disabled = true;
+            storyButton.disabled = true;
+        }
+
+        // Initial render with 2 dice and Firebase init
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeFirebase();
+            renderDice(parseInt(numDiceSelect.value));
+        });
+
+        // Event listener for number of dice selection change
+        numDiceSelect.addEventListener('change', () => {
+            if (!isRolling) { // Only change if not currently rolling
+                renderDice(parseInt(numDiceSelect.value));
+            } else {
+                showMessage('Cannot change number of dice while rolling!', 'error');
+                // Revert select to previous value if currently rolling
+                numDiceSelect.value = diceContainer.children.length;
+            }
+        });
+
+        // Function to simulate rolling animation
+        function startRollingAnimation() {
+            const dice = document.querySelectorAll('.die');
+            dice.forEach(die => {
+                die.classList.add('rolling');
+            });
+
+            let animationCount = 0;
+            // Rapidly change numbers to simulate rolling
+            rollingInterval = setInterval(() => {
+                dice.forEach(die => {
+                    die.textContent = Math.floor(Math.random() * 6) + 1; // Random number 1-6
+                });
+                animationCount++;
+                // Stop the animation after a short period if not explicitly stopped by button
+                if (animationCount > 30 && !isRolling) { // For cases where interval isn't cleared immediately
+                    clearInterval(rollingInterval);
+                    stopRollingAnimation();
+                }
+            }, 100); // Change numbers every 100ms
+        }
+
+        // Function to stop rolling animation and show final results
+        function stopRollingAnimation() {
+            clearInterval(rollingInterval);
+            const dice = document.querySelectorAll('.die');
+            let total = 0;
+            currentDiceResults = []; // Reset array before populating
+            dice.forEach(die => {
+                die.classList.remove('rolling');
+                const result = Math.floor(Math.random() * 6) + 1; // Final random number
+                die.textContent = result;
+                total += result;
+                currentDiceResults.push(result); // Store the final result for LLM features
+            });
+            resultDisplay.textContent = `Total: ${total}`;
+            isRolling = false;
+            rollButton.textContent = 'Roll Dice'; // Reset button text
+            rollButton.classList.remove('bg-red-600', 'hover:bg-red-700');
+            rollButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            // Enable LLM buttons after a roll
+            interpretButton.disabled = false;
+            storyButton.disabled = false;
+            interpretationDisplay.classList.add('hidden'); // Hide previous LLM results
+            storyDisplay.classList.add('hidden');
+        }
+
+        // Event listener for the roll button
+        rollButton.addEventListener('click', () => {
+            if (!isAuthReady || !currentUserId) {
+                showMessage("App is still initializing. Please wait a moment.", "error");
+                return;
+            }
+            if (!isRolling) {
+                isRolling = true;
+                rollButton.textContent = 'Stop Rolling'; // Change button text
+                rollButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                rollButton.classList.add('bg-red-600', 'hover:bg-red-700');
+                resultDisplay.textContent = ''; // Clear previous result
+                startRollingAnimation();
+            } else {
+                stopRollingAnimation();
+            }
+        });
+
+        // --- Gemini API Integration Functions ---
+
+        // Function to get roll interpretation
+        async function getRollInterpretation() {
+            if (currentDiceResults.length === 0) {
+                showMessage("Roll the dice first to get an interpretation!", "error");
+                return;
+            }
+
+            interpretButton.disabled = true;
+            interpretSpinner.classList.remove('hidden');
+            interpretationDisplay.classList.add('hidden');
+            interpretationDisplay.textContent = ''; // Clear previous interpretation
+
+            const prompt = `Given these dice rolls: ${currentDiceResults.join(', ')}. Provide a short, whimsical, or insightful interpretation of what this specific roll might mean in a fantastical context (e.g., for adventurers, fortune-telling, or a simple game outcome). Keep it to one sentence.`;
+            const apiKey = ""; // API key is provided by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    interpretationDisplay.textContent = text;
+                    interpretationDisplay.classList.remove('hidden');
+                } else {
+                    interpretationDisplay.textContent = "Could not interpret roll. Try again!";
+                    interpretationDisplay.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error("Error fetching interpretation:", e);
+                interpretationDisplay.textContent = "Failed to connect for interpretation. Check console.";
+                interpretationDisplay.classList.remove('hidden');
+                showMessage("Error getting interpretation.", "error");
+            } finally {
+                interpretButton.disabled = false;
+                interpretSpinner.classList.add('hidden');
+            }
+        }
+
+        // Function to generate a dice story
+        async function generateDiceStory() {
+            if (currentDiceResults.length === 0) {
+                showMessage("Roll the dice first to generate a story!", "error");
+                return;
+            }
+
+            storyButton.disabled = true;
+            storySpinner.classList.remove('hidden');
+            storyDisplay.classList.add('hidden');
+            storyDisplay.textContent = ''; // Clear previous story
+
+            const prompt = `Write a very short, imaginative story (1-2 paragraphs, max 50 words) where the numbers rolled on dice (which are: ${currentDiceResults.join(', ')}) play a significant role or inspire elements of the plot. Make it slightly whimsical.`;
+            const apiKey = ""; // API key is provided by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    storyDisplay.textContent = text;
+                    storyDisplay.classList.remove('hidden');
+                } else {
+                    storyDisplay.textContent = "Could not generate story. Try again!";
+                    storyDisplay.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error("Error generating story:", e);
+                storyDisplay.textContent = "Failed to connect for story generation. Check console.";
+                storyDisplay.classList.remove('hidden');
+                showMessage("Error generating story.", "error");
+            } finally {
+                storyButton.disabled = false;
+                storySpinner.classList.add('hidden');
+            }
+        }
+
+        // Event listeners for new LLM buttons
+        interpretButton.addEventListener('click', getRollInterpretation);
+        storyButton.addEventListener('click', generateDiceStory);
+
+        // Initial state for LLM buttons
+        interpretButton.disabled = true;
+        storyButton.disabled = true;
+    </script>
+</body>
+</html>
